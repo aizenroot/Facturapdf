@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle del Préstamo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #333;
+        }
+
+        .details {
+            margin-bottom: 30px;
+        }
+
+        .detail-row {
+            display: flex;
+            margin-bottom: 10px;
+            padding: 5px 0;
+        }
+
+        .detail-label {
+            flex: 1;
+            font-weight: bold;
+        }
+
+        .detail-value {
+            flex: 2;
+        }
+
+        .payments-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .payments-table th,
+        .payments-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .payments-table th {
+            background-color: #f8f9fa;
+        }
+
+        .payments-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+                margin: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 15px;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="documentoPrestamo">
+        <div class="header">
+            <h1>Detalle del Préstamo</h1>
+        </div>
+
+        <div class="details">
+            <div class="detail-row">
+                <span class="detail-label">Fecha:</span>
+                <span class="detail-value" id="fecha"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Cliente:</span>
+                <span class="detail-value" id="cliente"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Monto Prestado:</span>
+                <span class="detail-value" id="montoPrestado"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Modalidad:</span>
+                <span class="detail-value" id="modalidad"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Tasa de Interés (%):</span>
+                <span class="detail-value" id="tasaInteres"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Cuotas:</span>
+                <span class="detail-value" id="cuotas"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Importe Total:</span>
+                <span class="detail-value" id="importeTotal"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Importe Cuotas:</span>
+                <span class="detail-value" id="importeCuotas"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Importe + Mora:</span>
+                <span class="detail-value" id="importeMora"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Estado del Préstamo:</span>
+                <span class="detail-value" id="estadoPrestamo"></span>
+            </div>
+        </div>
+
+        <h2>Pagos</h2>
+        <table class="payments-table">
+            <thead>
+                <tr>
+                    <th>ID del Préstamo</th>
+                    <th>N° Cuota</th>
+                    <th>Fecha</th>
+                    <th>Importe</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody id="pagosTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Función para decodificar parámetros URL
+        function decodeURLParam(param) {
+            return param ? decodeURIComponent(param) : '';
+        }
+
+        // Función para obtener parámetros de la URL
+        function getURLParameters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return {
+                fecha: decodeURLParam(urlParams.get('FECHA')),
+                cliente: decodeURLParam(urlParams.get('CLIENTE')),
+                montoPrestado: decodeURLParam(urlParams.get('montoPrestado')),
+                modalidad: decodeURLParam(urlParams.get('modalidad')),
+                tasaInteres: decodeURLParam(urlParams.get('tasaInteres')),
+                cuotas: decodeURLParam(urlParams.get('cuotas')),
+                importeTotal: decodeURLParam(urlParams.get('importeTotal')),
+                importeCuotas: decodeURLParam(urlParams.get('importeCuotas')),
+                importeMora: decodeURLParam(urlParams.get('importeMora')),
+                estadoPrestamo: decodeURLParam(urlParams.get('estadoPrestamo')),
+                pagos: urlParams.get('pagos')
+            };
+        }
+
+        // Función para decodificar los pagos desde base64
+        function decodificarPagos(pagosBase64) {
+            try {
+                if (!pagosBase64) return [];
+                const jsonStr = atob(pagosBase64);
+                return JSON.parse(jsonStr);
+            } catch (error) {
+                console.error('Error al decodificar pagos:', error);
+                return [];
+            }
+        }
+
+        // Función para actualizar los datos en el documento
+        function actualizarDatosPrestamo(datos) {
+            for (const [key, value] of Object.entries(datos)) {
+                const elemento = document.getElementById(key);
+                if (elemento) {
+                    // Formatear valores monetarios
+                    if (key.toLowerCase().includes('monto') || key.toLowerCase().includes('importe')) {
+                        elemento.textContent = !isNaN(value) ? `S/ ${value}` : value;
+                    } else {
+                        elemento.textContent = value;
+                    }
+                }
+            }
+        }
+
+        // Función para actualizar la tabla de pagos
+        function actualizarTablaPagos(pagos) {
+            const tbody = document.getElementById('pagosTableBody');
+            tbody.innerHTML = '';
+
+            pagos.forEach(pago => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${pago.idPrestamo || ''}</td>
+                    <td>${pago.nCuota || ''}</td>
+                    <td>${pago.fecha || ''}</td>
+                    <td>${!isNaN(pago.importe) ? `S/ ${pago.importe}` : pago.importe || ''}</td>
+                    <td>${pago.estado || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Configuración del PDF
+        const pdfOptions = {
+            margin: 10,
+            filename: 'prestamo.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        // Función para generar el PDF
+        function generarPDF() {
+            const elemento = document.getElementById('documentoPrestamo');
+            html2pdf().set(pdfOptions).from(elemento).save();
+        }
+
+        // Cargar datos al iniciar la página
+        window.onload = function() {
+            const params = getURLParameters();
+            actualizarDatosPrestamo(params);
+            
+            const pagos = decodificarPagos(params.pagos);
+            actualizarTablaPagos(pagos);
+
+            // Generar PDF automáticamente
+            setTimeout(generarPDF, 1000);
+        };
+    </script>
+</body>
+</html>
